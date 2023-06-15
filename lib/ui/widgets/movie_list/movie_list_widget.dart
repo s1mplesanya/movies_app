@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:lesson3/domain/api_client/image_dowloader.dart';
 import 'package:lesson3/ui/navigator/main_navigator.dart';
 import 'package:lesson3/ui/widgets/movie_list/movie_list_cubit.dart';
-import 'package:lesson3/ui/widgets/movie_list/movie_list_model.dart';
 import 'package:provider/provider.dart';
 
 class MovieListWidget extends StatefulWidget {
