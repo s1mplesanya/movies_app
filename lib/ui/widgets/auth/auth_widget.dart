@@ -1,23 +1,46 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lesson3/Theme/app_button_style.dart';
-import 'package:lesson3/ui/widgets/auth/auth_model.dart';
+import 'package:lesson3/ui/navigator/main_navigator.dart';
+import 'package:lesson3/ui/widgets/auth/auth_view_cubit.dart';
 import 'package:provider/provider.dart';
+
+class _AuthDataStorage {
+  String login = "";
+  String password = "";
+}
 
 class AuthWidget extends StatelessWidget {
   const AuthWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Login to your account'),
-      ),
-      body: ListView(
-        children: const [
-          _HeaderWidget(),
-        ],
+    return BlocListener<AuthViewCubic, AuthViewCubicState>(
+      listener: _onAuthViewCubicStateChange,
+      listenWhen: (previous, current) => current is AuthViewCubicSuccessState,
+      child: Provider(
+        create: (_) => _AuthDataStorage(),
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Login to your account'),
+          ),
+          body: ListView(
+            children: const [
+              _HeaderWidget(),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  void _onAuthViewCubicStateChange(
+    BuildContext context,
+    AuthViewCubicState state,
+  ) {
+    if (state is AuthViewCubicSuccessState) {
+      MainNavigation.resetNavigation(context);
+    }
   }
 }
 
@@ -71,7 +94,7 @@ class _FormWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final model = context.read<AuthViewModel>();
+    final authDataStorage = context.read<_AuthDataStorage>();
     const textStyle = TextStyle(color: Color(0xFF212529), fontSize: 16);
     const mainColor = Color(0xFF01B4E4);
     const textFieldDecorator = InputDecoration(
@@ -91,8 +114,8 @@ class _FormWidget extends StatelessWidget {
           height: 5,
         ),
         TextField(
-          controller: model.loginTextController,
           decoration: textFieldDecorator,
+          onChanged: (value) => authDataStorage.login = value,
         ),
         const SizedBox(
           height: 20,
@@ -105,9 +128,9 @@ class _FormWidget extends StatelessWidget {
           height: 5,
         ),
         TextField(
-          controller: model.passwordTextController,
           obscureText: true,
           decoration: textFieldDecorator,
+          onChanged: (value) => authDataStorage.password = value,
         ),
         const SizedBox(
           height: 25,
@@ -140,9 +163,20 @@ class _AuthButtonWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const mainColor = Color(0xFF01B4E4);
-    final model = context.watch<AuthViewModel>();
-    final onPressed = model.canStartAuth ? () => model.auth(context) : null;
-    final child = model.isAuthProgress
+    final authDataStorage = context.read<_AuthDataStorage>();
+    final cubit = context.watch<AuthViewCubic>();
+
+    final canStartAuth = cubit.state is AuthViewCubicFormFillInProgressState ||
+        cubit.state is AuthViewCubicErrorState;
+
+    final onPressed = canStartAuth
+        ? () => cubit.auth(
+              context,
+              login: authDataStorage.login,
+              password: authDataStorage.password,
+            )
+        : null;
+    final child = cubit.state is AuthViewCubicAuthProgressState
         ? const SizedBox(
             width: 16,
             height: 16,
@@ -171,9 +205,16 @@ class _ErrorMessageWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final errorMessage =
-        context.select((AuthViewModel model) => model.errorMessage);
+    final errorMessage = context.select((AuthViewCubic c) {
+      final state = c.state;
+      if (state is AuthViewCubicErrorState) {
+        return state.errorMessage;
+      } else {
+        null;
+      }
+    });
     if (errorMessage == null) return const SizedBox.shrink();
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Text(
